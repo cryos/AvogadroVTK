@@ -2,7 +2,7 @@
 
   This source file is part of the Avogadro project.
 
-  Copyright 2011 Kitware, Inc.
+  Copyright Kitware, Inc.
 
   This source code is released under the New BSD License, (the "License").
 
@@ -19,6 +19,7 @@
 #include <QAction>
 
 #include <avogadro/molecule.h>
+#include <avogadro/glwidget.h>
 
 #include "VTKDialog.h"
 
@@ -51,8 +52,10 @@ QUndoCommand* VTKExtension::performAction(QAction *action, GLWidget *widget)
 {
   if (!m_vtkDialog) {
     m_vtkDialog = new VTKDialog(qobject_cast<QWidget *>(this->parent()));
+    m_vtkDialog->setGeometry(0, 0, 800, 600);
   }
   m_vtkDialog->show();
+  m_vtkDialog->setMolecule(widget->molecule());
   return 0;
 }
 

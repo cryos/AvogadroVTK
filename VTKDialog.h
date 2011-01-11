@@ -2,7 +2,7 @@
 
   This source file is part of the Avogadro project.
 
-  Copyright 2011 Kitware, Inc.
+  Copyright Kitware, Inc.
 
   This source code is released under the New BSD License, (the "License").
 
@@ -20,6 +20,7 @@
 #include <QDialog>
 
 class QVTKWidget;
+class vtkRenderViewBase;
 
 namespace Avogadro
 {
@@ -35,10 +36,13 @@ public:
   explicit VTKDialog(QWidget* parent = 0, Qt::WindowFlags f = 0);
   ~VTKDialog();
 
+  void setMolecule(Molecule *mol);
+
 private:
   const GLWidget *m_glwidget;
   const Molecule *m_molecule;
   QVTKWidget *m_qvtkWidget;
+  vtkRenderViewBase *m_context;
 };
 
 }
