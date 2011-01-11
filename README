@@ -1,0 +1,3 @@
+Avogadro extension plugin that builds against Avogadro and VTK. It is currently
+a prototype that shows the first cube for the loaded molecule, if present,
+and renders it using some preset parameters.
