@@ -19,14 +19,21 @@
 
 #include <QDialog>
 
+#include <vtkSmartPointer.h>
+#include <vtkNew.h>
+
 class QVTKWidget;
 class vtkRenderViewBase;
+class vtkVolume;
+class vtkLookupTable;
+class vtkPolyData;
 
 namespace Avogadro
 {
 
 class GLWidget;
 class Molecule;
+class Cube;
 
 class VTKDialog : public QDialog
 {
@@ -38,11 +45,18 @@ public:
 
   void setMolecule(Molecule *mol);
 
+protected:
+  vtkVolume * cubeVolume(Cube *cube);
+  void moleculePolyData(Molecule *mol);
+  void lut();
+
 private:
   const GLWidget *m_glwidget;
   const Molecule *m_molecule;
   QVTKWidget *m_qvtkWidget;
-  vtkRenderViewBase *m_context;
+  vtkNew<vtkRenderViewBase> m_context;
+  vtkNew<vtkLookupTable> m_lut;
+  vtkNew<vtkPolyData> m_moleculePolyData;
 };
 
 }

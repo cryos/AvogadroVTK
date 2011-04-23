@@ -23,6 +23,8 @@
 // Avogadro includes
 #include <avogadro/glwidget.h>
 #include <avogadro/molecule.h>
+#include <avogadro/atom.h>
+#include <avogadro/bond.h>
 #include <avogadro/cube.h>
 
 // VTK includes
@@ -39,6 +41,18 @@
 #include <vtkVolumeProperty.h>
 #include <vtkImageShiftScale.h>
 #include <vtkImageData.h>
+#include <vtkLookupTable.h>
+#include <vtkPolyData.h>
+#include <vtkIntArray.h>
+#include <vtkFloatArray.h>
+#include <vtkPoints.h>
+#include <vtkPointData.h>
+#include <vtkCellArray.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkProperty.h>
+
+// For the atom colors...
+#include <openbabel/mol.h>
 
 namespace Avogadro
 {
@@ -47,7 +61,6 @@ VTKDialog::VTKDialog(QWidget* parent, Qt::WindowFlags f)
   : QDialog(parent, f)
 {
   m_qvtkWidget = new QVTKWidget(this);
-  m_context = vtkRenderViewBase::New();
   m_context->SetInteractor(m_qvtkWidget->GetInteractor());
   m_qvtkWidget->SetRenderWindow(m_context->GetRenderWindow());
 
@@ -58,12 +71,14 @@ VTKDialog::VTKDialog(QWidget* parent, Qt::WindowFlags f)
   QVBoxLayout *layout = new QVBoxLayout(this);
   layout->addWidget(m_qvtkWidget);
   setLayout(layout);
+
+  // Some initialization
+  lut();
 }
 
 VTKDialog::~VTKDialog()
 {
   m_qvtkWidget->deleteLater();
-  m_context->Delete();
 }
 
 void VTKDialog::setMolecule(Molecule *mol)
@@ -71,9 +86,32 @@ void VTKDialog::setMolecule(Molecule *mol)
   if (!mol || mol->numCubes() == 0) {
     return;
   }
+  moleculePolyData(mol);
 
   Cube *cube = mol->cube(0);
 
+  vtkVolume *volume = cubeVolume(cube);
+  m_context->GetRenderer()->AddViewProp(volume);
+
+  vtkNew<vtkPolyDataMapper> m;
+  m->SetInput(m_moleculePolyData.GetPointer());
+  m->SetScalarRange(0, 106);
+  m->SetLookupTable(m_lut.GetPointer());
+  m->SetScalarModeToUsePointFieldData();
+  m->ColorByArrayComponent("z", 0);
+
+  vtkNew<vtkActor> actor;
+  actor->SetMapper(m.GetPointer());
+  actor->GetProperty()->SetLineWidth(3);
+  actor->GetProperty()->SetPointSize(5);
+
+  m_context->GetRenderer()->AddViewProp(actor.GetPointer());
+
+  m_context->GetRenderer()->ResetCamera();
+}
+
+vtkVolume * VTKDialog::cubeVolume(Cube *cube)
+{
   qDebug() << "Cube dimensions: " << cube->dimensions().x()
            << cube->dimensions().y() << cube->dimensions().z();
 
@@ -154,12 +192,74 @@ void VTKDialog::setMolecule(Molecule *mol)
   volumeProperty->SetColor(color);
   color->Delete();
 
-  volume=vtkVolume::New();
+  volume = vtkVolume::New();
   volume->SetMapper(volumeMapper);
   volume->SetProperty(volumeProperty);
 
-  m_context->GetRenderer()->AddViewProp(volume);
-  m_context->GetRenderer()->ResetCamera();
+  return volume;
+}
+
+void VTKDialog::moleculePolyData(Molecule *mol)
+{
+  unsigned int nAtoms = mol->numAtoms();
+  vtkNew<vtkIntArray> aNums;
+  aNums->SetName("z");
+  aNums->SetNumberOfComponents(1);
+  aNums->SetNumberOfTuples(nAtoms);
+  vtkNew<vtkFloatArray> radius;
+  radius->SetName("sizevecs");
+  radius->SetNumberOfComponents(3);
+  radius->SetNumberOfTuples(nAtoms);
+  vtkNew<vtkPoints> pts;
+  pts->SetNumberOfPoints(nAtoms);
+
+  // Atoms
+  std::vector<unsigned int> orphans;
+  for(unsigned int i = 0; i < nAtoms; ++i) {
+    Atom *a = mol->atom(i);
+    const Eigen::Vector3d *p = a->pos();
+    aNums->SetValue(i, a->atomicNumber());
+    double r = OpenBabel::etab.GetVdwRad(a->atomicNumber());
+    radius->SetTuple3(i, r, r, r);
+    pts->SetPoint(i, p->data());
+
+    if (a->bonds().size() == 0)
+      orphans.push_back(i);
+  }
+
+  // Bonds
+  vtkNew<vtkCellArray> bonds;
+  QList<Bond *> bList = mol->bonds();
+  bonds->Allocate(bList.size(), bList.size());
+  foreach(Bond *bond, bList) {
+    bonds->InsertNextCell(2);
+    bonds->InsertCellPoint(bond->beginAtomId());
+    bonds->InsertCellPoint(bond->endAtomId());
+  }
+  vtkNew<vtkCellArray> verts;
+  verts->Allocate(orphans.size(), orphans.size());
+  foreach(unsigned int o, orphans) {
+    verts->InsertNextCell(1);
+    verts->InsertCellPoint(o);
+  }
+
+  m_moleculePolyData->SetPoints(pts.GetPointer());
+  m_moleculePolyData->SetLines(bonds.GetPointer());
+  m_moleculePolyData->SetVerts(verts.GetPointer());
+
+  m_moleculePolyData->GetPointData()->SetScalars(aNums.GetPointer());
+  m_moleculePolyData->GetPointData()->SetVectors(radius.GetPointer());
+}
+
+void VTKDialog::lut()
+{
+  int n = 106;
+  m_lut->SetNumberOfColors(n);
+  std::vector<double> rgb;
+  for(int i = 0; i < n; ++i) {
+    rgb = OpenBabel::etab.GetRGB(i);
+    m_lut->SetTableValue(i, rgb[0], rgb[1], rgb[2]);
+  }
 }
 
 }

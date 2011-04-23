@@ -13,6 +13,10 @@ find_package(Avogadro 1.1.0 REQUIRED NO_MODULE)
 # Find the VTK library too
 find_package(VTK REQUIRED)
 
+# Need open babel for now to get the atom colors
+find_package(OpenBabel2 REQUIRED)
+include_directories(${OPENBABEL2_INCLUDE_DIR})
+
 # Set up the build environment
 include(${Avogadro_USE_FILE})
 include(${VTK_USE_FILE})
@@ -22,3 +26,5 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 avogadro_plugin(vtkextension "vtkextension.cpp;VTKDialog.cpp")
 
 target_link_libraries(vtkextension ${QT_LIBRARIES} QVTK vtkVolumeRendering)
+
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
