@@ -175,22 +175,37 @@ vtkVolume * VTKDialog::cubeVolume(Cube *cube)
   volumeProperty->ShadeOff();
   volumeProperty->SetInterpolationTypeToLinear();
 
-  vtkPiecewiseFunction *compositeOpacity = vtkPiecewiseFunction::New();
-  compositeOpacity->AddPoint(  0.00, 0.0);
-  compositeOpacity->AddPoint( 63.75, 0.5);
-  compositeOpacity->AddPoint(127.50, 0.0);
-  compositeOpacity->AddPoint(192.25, 0.5);
-  compositeOpacity->AddPoint(255.00, 0.0);
-  volumeProperty->SetScalarOpacity(compositeOpacity); // composite first.
+  vtkNew<vtkPiecewiseFunction> compositeOpacity;
+  vtkNew<vtkColorTransferFunction> color;
+  if (cube->cubeType() == Cube::MO) {
+    compositeOpacity->AddPoint(  0.00, 0.0);
+    compositeOpacity->AddPoint( 63.75, 0.5);
+    compositeOpacity->AddPoint(127.50, 0.0);
+    compositeOpacity->AddPoint(192.25, 0.5);
+    compositeOpacity->AddPoint(255.00, 0.0);
 
-  vtkColorTransferFunction *color=vtkColorTransferFunction::New();
-  color->AddRGBPoint(  0.00, 0.0, 0.0, 0.0);
-  color->AddRGBPoint( 63.75, 1.0, 0.0, 0.0);
-  color->AddRGBPoint(127.50, 0.0, 0.2, 0.0);
-  color->AddRGBPoint(191.25, 0.0, 0.0, 1.0);
-  color->AddRGBPoint(255.00, 0.0, 0.0, 0.0);
-  volumeProperty->SetColor(color);
-  color->Delete();
+    color->AddRGBPoint(  0.00, 0.0, 0.0, 0.0);
+    color->AddRGBPoint( 63.75, 1.0, 0.0, 0.0);
+    color->AddRGBPoint(127.50, 0.0, 0.2, 0.0);
+    color->AddRGBPoint(191.25, 0.0, 0.0, 1.0);
+    color->AddRGBPoint(255.00, 0.0, 0.0, 0.0);
+  }
+  else {
+    compositeOpacity->AddPoint(  0.00, 0.00);
+    compositeOpacity->AddPoint(  1.75, 0.30);
+    compositeOpacity->AddPoint(  2.50, 0.50);
+    compositeOpacity->AddPoint(192.25, 0.85);
+    compositeOpacity->AddPoint(255.00, 0.90);
+
+    color->AddRGBPoint(  0.00, 0.0, 0.0, 1.0);
+    color->AddRGBPoint( 63.75, 0.0, 0.0, 0.8);
+    color->AddRGBPoint(127.50, 0.0, 0.0, 0.5);
+    color->AddRGBPoint(191.25, 0.0, 0.0, 0.2);
+    color->AddRGBPoint(255.00, 0.0, 0.0, 0.0);
+  }
+
+  volumeProperty->SetScalarOpacity(compositeOpacity.GetPointer()); // composite first.
+  volumeProperty->SetColor(color.GetPointer());
 
   volume = vtkVolume::New();
   volume->SetMapper(volumeMapper);
