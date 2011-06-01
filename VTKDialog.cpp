@@ -17,8 +17,11 @@
 #include "VTKDialog.h"
 
 // Qt includes
-#include <QVBoxLayout>
-#include <QDebug>
+#include <QtGui/QVBoxLayout>
+#include <QtGui/QHBoxLayout>
+#include <QtGui/QComboBox>
+#include <QtGui/QLabel>
+#include <QtCore/QDebug>
 
 // Avogadro includes
 #include <avogadro/glwidget.h>
@@ -58,7 +61,7 @@ namespace Avogadro
 {
 
 VTKDialog::VTKDialog(QWidget* parent, Qt::WindowFlags f)
-  : QDialog(parent, f)
+  : QDialog(parent, f), m_volume(NULL)
 {
   m_qvtkWidget = new QVTKWidget(this);
   m_context->SetInteractor(m_qvtkWidget->GetInteractor());
@@ -70,10 +73,21 @@ VTKDialog::VTKDialog(QWidget* parent, Qt::WindowFlags f)
 
   QVBoxLayout *layout = new QVBoxLayout(this);
   layout->addWidget(m_qvtkWidget);
+
+  // Now for the combo box
+  QHBoxLayout *hLayout = new QHBoxLayout();
+  QLabel *label = new QLabel("Cube:");
+  hLayout->addWidget(label);
+  m_comboCube = new QComboBox(this);
+  hLayout->addWidget(m_comboCube);
+  layout->addLayout(hLayout);
+
   setLayout(layout);
 
   // Some initialization
   lut();
+
+  connect(m_comboCube, SIGNAL(currentIndexChanged(int)), SLOT(cubeChanged(int)));
 }
 
 VTKDialog::~VTKDialog()
@@ -81,17 +95,45 @@ VTKDialog::~VTKDialog()
   m_qvtkWidget->deleteLater();
 }
 
+void VTKDialog::cubeChanged(int index)
+{
+  if (index < 0 || index >= m_molecule->numCubes())
+    return;
+
+  if (m_volume)
+    m_context->GetRenderer()->RemoveViewProp(m_volume);
+  m_volume = cubeVolume(m_molecule->cube(index));
+  m_volume->Delete();
+  m_context->GetRenderer()->AddViewProp(m_volume);
+  m_context->Render();
+}
+
 void VTKDialog::setMolecule(Molecule *mol)
 {
   if (!mol || mol->numCubes() == 0) {
     return;
   }
+
+  m_molecule = mol;
+  updateCubeCombo();
+
   moleculePolyData(mol);
 
-  Cube *cube = mol->cube(0);
+  Cube *cube = NULL;
+  if (m_comboCube->currentIndex() >=0 && m_comboCube->currentIndex() < mol->numCubes()) {
+    cube = mol->cube(m_comboCube->currentIndex());
+  }
+  else {
+    cube = mol->cube(0);
+  }
+  qDebug() << "Combo index:" << m_comboCube->currentIndex();
 
-  vtkVolume *volume = cubeVolume(cube);
-  m_context->GetRenderer()->AddViewProp(volume);
+  if (m_volume)
+    m_context->GetRenderer()->RemoveViewProp(m_volume);
+
+  m_volume = cubeVolume(cube);
+  m_volume->Delete();
+  m_context->GetRenderer()->AddViewProp(m_volume);
 
   vtkNew<vtkPolyDataMapper> m;
   m->SetInput(m_moleculePolyData.GetPointer());
@@ -118,7 +160,7 @@ vtkVolume * VTKDialog::cubeVolume(Cube *cube)
   qDebug() << "min/max:" << cube->minValue() << cube->maxValue();
   qDebug() << cube->data()->size();
 
-  vtkImageData *data = vtkImageData::New();
+  vtkNew<vtkImageData> data;
   data->SetNumberOfScalarComponents(1);
   Eigen::Vector3i dim = cube->dimensions();
   data->SetExtent(0, dim.x()-1, 0, dim.y()-1, 0, dim.z()-1);
@@ -147,8 +189,8 @@ vtkVolume * VTKDialog::cubeVolume(Cube *cube)
 //  a->GetRange(range);
   qDebug() << "ImageData range: " << range[0] << range[1];
 
-  vtkImageShiftScale *t = vtkImageShiftScale::New();
-  t->SetInput(data);
+  vtkNew<vtkImageShiftScale> t;
+  t->SetInput(data.GetPointer());
   t->SetShift(-range[0]);
   double magnitude = range[1] - range[0];
   if(magnitude == 0.0)
@@ -162,16 +204,14 @@ vtkVolume * VTKDialog::cubeVolume(Cube *cube)
 
   t->Update();
 
-  vtkSmartVolumeMapper *volumeMapper;
-  vtkVolumeProperty *volumeProperty;
-  vtkVolume *volume;
+  vtkNew<vtkSmartVolumeMapper> volumeMapper;
+  vtkNew<vtkVolumeProperty> volumeProperty;
+  vtkVolume *volume = vtkVolume::New();
 
-  volumeMapper=vtkSmartVolumeMapper::New();
   volumeMapper->SetBlendModeToComposite();
 //  volumeMapper->SetBlendModeToComposite(); // composite first
   volumeMapper->SetInputConnection(t->GetOutputPort());
 
-  volumeProperty=vtkVolumeProperty::New();
   volumeProperty->ShadeOff();
   volumeProperty->SetInterpolationTypeToLinear();
 
@@ -207,9 +247,8 @@ vtkVolume * VTKDialog::cubeVolume(Cube *cube)
   volumeProperty->SetScalarOpacity(compositeOpacity.GetPointer()); // composite first.
   volumeProperty->SetColor(color.GetPointer());
 
-  volume = vtkVolume::New();
-  volume->SetMapper(volumeMapper);
-  volume->SetProperty(volumeProperty);
+  volume->SetMapper(volumeMapper.GetPointer());
+  volume->SetProperty(volumeProperty.GetPointer());
 
   return volume;
 }
@@ -276,6 +315,27 @@ void VTKDialog::lut()
     m_lut->SetTableValue(i, rgb[0], rgb[1], rgb[2]);
   }
 }
+
+void VTKDialog::updateCubeCombo()
+{
+  if (!m_molecule || m_molecule->numCubes() == 0)
+    return;
+
+  // Reset the orbital combo
+  int index = m_comboCube->currentIndex();
+  if (index < 0)
+    index = 0;
+  m_comboCube->clear();
+
+
+  qDebug() << "Cubes updating:" << m_molecule->numCubes();
+  foreach(Cube *cube, m_molecule->cubes()) {
+    qDebug() << "Adding cube:" << cube->name();
+    m_comboCube->addItem(cube->name());
+  }
+  m_comboCube->setCurrentIndex(index);
+}
+
 
 }
 

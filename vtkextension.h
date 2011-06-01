@@ -14,8 +14,8 @@
 
 ******************************************************************************/
 
-#ifndef SIMPLEWIREENGINE_H
-#define SIMPLEWIREENGINE_H
+#ifndef VTKEXTENSION_H
+#define VTKEXTENSION_H
 
 #include <avogadro/global.h>
 #include <avogadro/extension.h>
@@ -89,7 +89,7 @@ protected:
 
 };
 
-//! Generates instances of our WireEngine class
+//! Generates instances of our VTKExtension class
 class VTKExtensionFactory : public QObject, public PluginFactory
 {
   Q_OBJECT
@@ -100,4 +100,3 @@ class VTKExtensionFactory : public QObject, public PluginFactory
 } // end namespace Avogadro
 
 #endif
-

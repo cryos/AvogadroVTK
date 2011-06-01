@@ -22,11 +22,14 @@
 #include <vtkSmartPointer.h>
 #include <vtkNew.h>
 
+class QComboBox;
+
 class QVTKWidget;
 class vtkRenderViewBase;
 class vtkVolume;
 class vtkLookupTable;
 class vtkPolyData;
+class vtkVolume;
 
 namespace Avogadro
 {
@@ -45,10 +48,15 @@ public:
 
   void setMolecule(Molecule *mol);
 
+protected slots:
+  void cubeChanged(int index);
+
 protected:
   vtkVolume * cubeVolume(Cube *cube);
   void moleculePolyData(Molecule *mol);
   void lut();
+
+  void updateCubeCombo();
 
 private:
   const GLWidget *m_glwidget;
@@ -57,6 +65,9 @@ private:
   vtkNew<vtkRenderViewBase> m_context;
   vtkNew<vtkLookupTable> m_lut;
   vtkNew<vtkPolyData> m_moleculePolyData;
+  vtkSmartPointer<vtkVolume> m_volume;
+
+  QComboBox *m_comboCube;
 };
 
 }
