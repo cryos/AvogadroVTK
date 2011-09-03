@@ -120,7 +120,8 @@ void VTKDialog::setMolecule(Molecule *mol)
   moleculePolyData(mol);
 
   Cube *cube = NULL;
-  if (m_comboCube->currentIndex() >=0 && m_comboCube->currentIndex() < mol->numCubes()) {
+  if (m_comboCube->currentIndex() >= 0 &&
+      m_comboCube->currentIndex() < mol->numCubes()) {
     cube = mol->cube(m_comboCube->currentIndex());
   }
   else {
@@ -327,15 +328,12 @@ void VTKDialog::updateCubeCombo()
     index = 0;
   m_comboCube->clear();
 
-
   qDebug() << "Cubes updating:" << m_molecule->numCubes();
   foreach(Cube *cube, m_molecule->cubes()) {
-    qDebug() << "Adding cube:" << cube->name();
     m_comboCube->addItem(cube->name());
   }
   m_comboCube->setCurrentIndex(index);
 }
-
 
 }
 
